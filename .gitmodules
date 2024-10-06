@@ -1,0 +1,3 @@
+[submodule "Wrenderer"]
+	path = Wrenderer
+	url = https://github.com/wijiler/Wrenderer.git
