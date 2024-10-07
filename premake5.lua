@@ -10,11 +10,13 @@ project "Wrengine"
 
     targetdir("%{wks.location}/Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("%{wks.location}/Binaries/Intermediates/" .. outputdir .. "/%{prj.name}")
-    files { "**.hpp", "**.cpp" }
+    files { "include/**.hpp", "src/**.cpp" }
     libdirs { "./libs/" }
     includedirs { "./include/" }
+    includedirs { "./Wrenderer/include/" }
     includedirs { "./include/libs/" }
     includedirs { os.getenv("VULKAN_SDK") .. "/Include" }
+    libdirs { os.getenv("VULKAN_SDK") .. "/Lib" }
     buildoptions { "-Wextra -Wall" }
     links { "vulkan-1", "glfw3" }
     links { "Wrenderer" }
