@@ -18,14 +18,21 @@ typedef struct
 {
     float position[3];
     float color[3];
+    float uv[2];
 } vertex;
 
 vertex verts[4] = {
-    {{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}},
-    {{-0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}},
-    {{0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}},
-    {{0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}},
+    {{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+    {{0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
 };
+
+typedef struct
+{
+    uint64_t textureID;
+    VkDeviceAddress vertData;
+} meshData;
 
 int ImageIndex = 0;
 int FrameIndex = 0;
@@ -40,7 +47,7 @@ void loop()
 
 void init()
 {
-    renderer.meshHandler.vertexSize = sizeof(vertex);
+    renderer.meshHandler.vertexSize = sizeof(meshData);
     initRenderer(&renderer);
 
     uint64_t Len = 0;
@@ -78,18 +85,15 @@ void init()
     pl.alphaToOneEnable = VK_TRUE;
     pl.sampleMask = UINT32_MAX;
 
-    setShaderSLSPRV(renderer.vkCore, &pl, Shader, Len);
-
-    uint32_t indices[6] = {0, 1, 2, 2, 3, 1};
-
-    Mesh triangle = createMesh(renderer, 4, verts, 6, indices, 1);
-    submitMesh(triangle, &renderer);
-
     setPushConstantRange(&pl, sizeof(pushConstants), SHADER_STAGE_VERTEX);
+
+    createPipelineLayout(renderer.vkCore, &pl);
+
+    setShaderSLSPRV(renderer.vkCore, &pl, Shader, Len);
 
     int texWidth, texHeight, texChannels;
     stbi_uc *img = stbi_load("assets/birb.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    Texture birby = createTextureImage(renderer.vkCore, texWidth, texHeight);
+    Texture birby = createTexture(renderer.vkCore, texWidth, texHeight);
     BufferCreateInfo bci = {
         texWidth * texHeight * 4,
         BUFFER_USAGE_TRANSFER_SRC,
@@ -98,12 +102,42 @@ void init()
     Buffer buf;
     createBuffer(renderer.vkCore, bci, &buf);
     pushDataToBuffer(img, texWidth * texHeight * 4, buf, 0);
-    copyDataToTextureImage(renderer.vkCore, &birby, &buf, texWidth, texHeight);
+    copyDataToTextureImage(renderer.vkCore, &birby.img, &buf, texWidth, texHeight);
     destroyBuffer(buf, renderer.vkCore);
     stbi_image_free(img);
-    write_textureDescriptorSet(renderer.vkCore, birby.imgview, renderer.vkCore.linearSampler, 0);
+    submitTexture(&renderer, &birby, renderer.vkCore.linearSampler);
 
-    createPipelineLayout(renderer.vkCore, &pl);
+    uint32_t indices[6] = {
+        0,
+        1,
+        2,
+        2,
+        3,
+        1,
+    };
+    BufferCreateInfo bCI = {
+        sizeof(verts),
+        static_cast<BufferUsage>(BUFFER_USAGE_VERTEX | BUFFER_USAGE_TRANSFER_DST),
+        DEVICE_ONLY,
+    };
+    Buffer vBuf{};
+    Buffer sBuf{};
+    createBuffer(renderer.vkCore, bCI, &vBuf);
+    bCI.usage = BUFFER_USAGE_TRANSFER_SRC;
+    bCI.access = CPU_ONLY;
+    createBuffer(renderer.vkCore, bCI, &sBuf);
+    pushDataToBuffer(verts, sizeof(verts), sBuf, 0);
+    copyBuf(renderer.vkCore, sBuf, vBuf, sizeof(verts), 0, 0);
+    destroyBuffer(sBuf, renderer.vkCore);
+
+    meshData meshD = {
+        birby.index,
+        vBuf.gpuAddress,
+    };
+
+    Mesh triangle = createMesh(renderer, 1, &meshD, 6, indices, 1);
+    submitMesh(triangle, &renderer);
+
     RenderPass scenePass = sceneDraw(&renderer);
     scenePass.gPl = pl;
     VkOffset2D offSet = {0, 0};
