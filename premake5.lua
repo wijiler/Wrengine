@@ -1,16 +1,16 @@
 workspace "Wrenderer"
 project "Wrengine"
-    language "C++"
+    language "C"
     targetname "Wrengine"
     architecture "x64"
     outputdir = "%{cfg.system}-%{cfg.architecture}/%{cfg.buildcfg}"
     kind "ConsoleApp"
     toolset "clang"
-    cppdialect "C++17"
+    cdialect "C99"
 
     targetdir("%{wks.location}/Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("%{wks.location}/Binaries/Intermediates/" .. outputdir .. "/%{prj.name}")
-    files { "include/**.hpp", "src/**.cpp" }
+    files { "include/**.h", "src/**.c" }
     libdirs { "./libs/" }
     includedirs { "./include/" }
     includedirs { "./Wrenderer/include/" }
@@ -36,20 +36,9 @@ project "Wrengine"
         defines { "VK_USE_PLATFORM_XLIB_KHR" }
 
     filter "action:gmake"
+
+
     prebuildcommands {
-
-        "mkdir -p" .. " %{wks.location}/Binaries/",
-        "mkdir -p" .. " %{wks.location}/Binaries/Intermediates/",
-
-        "mkdir -p" .. " %{wks.location}/Binaries/" .. outputdir,
-        "mkdir -p" .. " %{wks.location}/Binaries/Intermediates/" .. outputdir,
+        "compileShaders.bat"
     }
-    filter "not action:gmake"
-        prebuildcommands {
-            "{MKDIR}" .. " %{wks.location}/Binaries/",
-            "{MKDIR}" .. " %{wks.location}/Binaries/Intermediates/",
-
-            "{MKDIR}" .. " %{wks.location}/Binaries/" .. outputdir,
-            "{MKDIR}" .. " %{wks.location}/Binaries/Intermediates/" .. outputdir,
-        }
 include "Wrenderer/premake5.lua"
