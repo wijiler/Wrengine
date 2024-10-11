@@ -151,10 +151,10 @@
 #include <engine.h>
 #include <stdio.h>
 
-// void thing(uint64_t *entityIDs, uint64_t entityCount, void *data, uint64_t dataCount)
-// {
-//     printf("hi\n");
-// }
+void thing(uint64_t *compIDs, uint64_t compCount, void *data, uint64_t dataCount)
+{
+    printf("hi\n");
+}
 // void thing2(uint64_t *entityIDs, uint64_t entityCount, void *data, uint64_t dataCount)
 // {
 //     printf("hi but different\n");
@@ -170,6 +170,18 @@ int main(void)
 
     // glfwDestroyWindow(renderer.vkCore.window);
     // glfwTerminate();
+
+    WRESystem sys = {
+        0,
+        0,
+        0,
+        thing,
+        false,
+        NULL,
+        NULL,
+    };
+    registerSystem(&sys);
+
     WREngine engine = {0};
     launchEngine(&engine);
     destroyEngine(&engine);

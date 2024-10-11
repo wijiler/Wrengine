@@ -5,13 +5,17 @@
 #include <stdint.h>
 
 typedef struct WREComponent WREComponent;
-typedef void (*ComponentFunction)(WREComponent *self, void *data);
+typedef void (*ComponentInitFunction)(WREComponent *self);
+typedef void (*ComponentDestroyFunction)(WREComponent *self, uint64_t entityID);
 
 struct WREComponent
 {
     uint64_t compID;
-    ComponentFunction initializer;
-    ComponentFunction destructor;
+    ComponentInitFunction initializer;
+    ComponentDestroyFunction destructor;
+    uint64_t entityCount;
+    uint64_t *entityIDS;
+    void **entityData;
 };
 
 typedef struct
@@ -19,21 +23,20 @@ typedef struct
     uint64_t entityID;
     uint64_t compCount;
     int64_t components[MAXCOMPONENTS];
-    void *compData[MAXCOMPONENTS];
     bool active;
 } WREntity;
 
-typedef void (*WRESystemfunction)(uint64_t *entityIDs, uint64_t entityCount, void *data, uint64_t dataCount);
+typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount);
 
 typedef struct
 {
     uint64_t systemID;
     uint64_t touchCount;
-    uint64_t *entityIDs;
     uint64_t datacount;
     WRESystemfunction function;
-    void *data;
     bool active;
+    void *data;
+    uint64_t *componentIDs;
 } WRESystem;
 
 typedef struct
@@ -47,7 +50,7 @@ typedef struct
 } systemManager;
 
 static systemManager WRECS = {0};
-void addComponent(WREntity *entity, WREComponent comp, void *constructionData);
+void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
 void registerComponent(WREComponent *component);
 void registerEntity(WREntity *entity);
 void registerSystem(WRESystem *system);

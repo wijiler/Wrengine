@@ -4,11 +4,19 @@
 
 #define INCREMENTAMOUNT 100
 
-void addComponent(WREntity *entity, WREComponent comp, void *constructionData)
+void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
 {
-    entity->components[entity->compCount] = comp.compID;
-    entity->compData[entity->compCount] = constructionData;
+    entity->components[entity->compCount] = comp->compID;
     entity->compCount += 1;
+
+    if (comp->entityCount % INCREMENTAMOUNT == 0)
+    {
+        comp->entityIDS = realloc(comp->entityIDS, sizeof(uint64_t) * (comp->entityCount + INCREMENTAMOUNT));
+        comp->entityData = realloc(comp->entityData, sizeof(void *) * (comp->entityCount + INCREMENTAMOUNT));
+    }
+    comp->entityIDS[comp->entityCount] = entity->entityID;
+    comp->entityData[comp->entityCount] = constructionData;
+    comp->entityCount += 1;
 }
 
 void registerComponent(WREComponent *component)
@@ -18,12 +26,14 @@ void registerComponent(WREComponent *component)
         WRECS.components = realloc(WRECS.components, sizeof(WREComponent) * (WRECS.componentCount + INCREMENTAMOUNT));
     }
     component->compID = WRECS.componentCount;
-    WRECS.components[WRECS.componentCount] = component;
+    WRECS.components[WRECS.componentCount] = malloc(sizeof(WREComponent));
+    memcpy(WRECS.components[WRECS.componentCount], component, sizeof(WREComponent));
     WRECS.componentCount += 1;
 }
 
 void registerEntity(WREntity *entity)
 {
+    entity->active = true;
     if (WRECS.entityCount % INCREMENTAMOUNT == 0)
     {
         WRECS.entities = realloc(WRECS.entities, sizeof(WREntity) * (WRECS.entityCount + INCREMENTAMOUNT));
@@ -33,19 +43,20 @@ void registerEntity(WREntity *entity)
         if (!WRECS.entities[i]->active)
         {
             entity->entityID = i;
-            WRECS.entities[i] = entity;
+            WRECS.entities[i] = malloc(sizeof(WREntity));
+            memcpy(WRECS.entities[i], entity, sizeof(WREntity));
             WRECS.entityCount += 1;
             return;
         }
     }
-    entity->entityID = WRECS.entityCount;
-    entity->active = true;
-    WRECS.entities[WRECS.entityCount] = entity;
+    WRECS.entities[WRECS.entityCount] = malloc(sizeof(WREntity));
+    memcpy(WRECS.entities[WRECS.entityCount], entity, sizeof(WREntity));
     WRECS.entityCount += 1;
 }
 
 void registerSystem(WRESystem *system)
 {
+    system->active = true;
     if (WRECS.systemCount % INCREMENTAMOUNT == 0)
     {
         WRECS.systems = realloc(WRECS.systems, sizeof(WRESystem) * (WRECS.systemCount + INCREMENTAMOUNT));
@@ -55,14 +66,15 @@ void registerSystem(WRESystem *system)
         if (!WRECS.systems[i]->active)
         {
             system->systemID = i;
-            WRECS.systems[i] = system;
+            WRECS.systems[i] = malloc(sizeof(WRESystem));
+            memcpy(WRECS.systems[i], system, sizeof(WRESystem));
             WRECS.systemCount += 1;
             return;
         }
     }
     system->systemID = WRECS.systemCount;
-    system->active = true;
-    WRECS.systems[WRECS.systemCount] = system;
+    WRECS.systems[WRECS.systemCount] = malloc(sizeof(WRESystem));
+    memcpy(WRECS.systems[WRECS.systemCount], system, sizeof(WRESystem));
     WRECS.systemCount += 1;
 }
 
@@ -89,13 +101,19 @@ void removeSystem(uint64_t systemID)
 
 void runECSInitFunctions()
 {
-    for (uint64_t i = 0; i < WRECS.entityCount; i++)
+    for (uint64_t i = 0; i < WRECS.componentCount; i++)
     {
-        WREntity *cE = WRECS.entities[i];
-        for (uint64_t j = 0; j < cE->compCount; j++)
+        WRECS.components[i]->initializer(WRECS.components[i]);
+    }
+}
+
+uint64_t getEntityIndex(WREComponent comp, uint64_t entityID)
+{
+    for (uint64_t i = 0; i < comp.entityCount; i++)
+    {
+        if (comp.entityIDS[i] == entityID)
         {
-            WREComponent *comp = getComponent(cE->components[i]);
-            comp->initializer(comp, cE->compData[j]);
+            return i;
         }
     }
 }
@@ -107,10 +125,9 @@ void destroyEntity(uint64_t entityID)
     for (uint64_t i = 0; i < entity->compCount; i++)
     {
         WREComponent *currentComponent = getComponent(entity->components[i]);
-        currentComponent->destructor(currentComponent, entity->compData[i]);
+        currentComponent->destructor(currentComponent, getEntityIndex(*currentComponent, entityID));
     }
     entity->compCount = 0;
-    free(entity->compData);
     WRECS.entityCount -= 1;
 }
 
@@ -119,12 +136,14 @@ void runSystems()
     for (uint64_t i = 0; i < WRECS.systemCount; i++)
     {
         WRESystem *sys = getSystem(i);
-
-        sys->function(
-            sys->entityIDs,
-            sys->touchCount,
-            sys->data,
-            sys->datacount);
+        if (sys->active)
+        {
+            sys->function(
+                sys->componentIDs,
+                sys->touchCount,
+                sys->data,
+                sys->datacount);
+        }
     }
 }
 
@@ -227,31 +246,3 @@ typedef struct
     uint64_t textureIndex;
     VkDeviceAddress vertBuf;
 } meshData;
-
-void meshInit(WREComponent *self, void *data)
-{
-    MeshComponent *comp = (MeshComponent *)data;
-
-    BufferCreateInfo bCI = {
-        sizeof(comp->vertices[0]) * comp->vertexCount,
-        BUFFER_USAGE_TRANSFER_SRC,
-        CPU_ONLY,
-    };
-    Buffer sBuf = {0};
-    Buffer vBuf = {0};
-    createBuffer(comp->Renderer->vkCore, bCI, &sBuf);
-    bCI.usage = BUFFER_USAGE_VERTEX | BUFFER_USAGE_TRANSFER_DST;
-    bCI.access = DEVICE_ONLY;
-    createBuffer(comp->Renderer->vkCore, bCI, &vBuf);
-    pushDataToBuffer(comp->vertices, sizeof(comp->vertices[0]) * comp->vertexCount, sBuf, 0);
-    copyBuf(comp->Renderer->vkCore, sBuf, vBuf, sizeof(comp->vertices[0]) * comp->vertexCount, 0, 0);
-    destroyBuffer(sBuf, comp->Renderer->vkCore);
-    meshData mDat = {
-        comp->textureID,
-        vBuf.gpuAddress,
-    };
-    Mesh mesh = createMesh(*comp->Renderer, 1, &mDat, comp->indexCount, comp->indices, comp->instanceCount);
-    comp->meshIndex = comp->Renderer->meshHandler.instancedmeshCount;
-
-    submitMesh(mesh, comp->Renderer);
-}
