@@ -2,135 +2,6 @@
 #include <engine.h>
 #include <stdio.h>
 
-#define INCREMENTAMOUNT 100
-
-void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
-{
-    entity->components[entity->compCount] = comp->compID;
-    entity->compCount += 1;
-
-    if (comp->entityCount % INCREMENTAMOUNT == 0)
-    {
-        comp->entityIDS = realloc(comp->entityIDS, sizeof(uint64_t) * (comp->entityCount + INCREMENTAMOUNT));
-        comp->entityData = realloc(comp->entityData, sizeof(void *) * (comp->entityCount + INCREMENTAMOUNT));
-    }
-    comp->entityIDS[comp->entityCount] = entity->entityID;
-    comp->entityData[comp->entityCount] = constructionData;
-    comp->entityCount += 1;
-}
-
-void registerComponent(WREComponent *component)
-{
-    if (WRECS.componentCount % INCREMENTAMOUNT == 0)
-    {
-        WRECS.components = realloc(WRECS.components, sizeof(WREComponent) * (WRECS.componentCount + INCREMENTAMOUNT));
-    }
-    component->compID = WRECS.componentCount;
-    WRECS.components[WRECS.componentCount] = malloc(sizeof(WREComponent));
-    memcpy(WRECS.components[WRECS.componentCount], component, sizeof(WREComponent));
-    WRECS.componentCount += 1;
-}
-
-void registerEntity(WREntity *entity)
-{
-    entity->active = true;
-    if (WRECS.entityCount % INCREMENTAMOUNT == 0)
-    {
-        WRECS.entities = realloc(WRECS.entities, sizeof(WREntity) * (WRECS.entityCount + INCREMENTAMOUNT));
-    }
-    for (uint64_t i = 0; i < WRECS.entityCount; i++)
-    {
-        if (!WRECS.entities[i]->active)
-        {
-            entity->entityID = i;
-            WRECS.entities[i] = malloc(sizeof(WREntity));
-            memcpy(WRECS.entities[i], entity, sizeof(WREntity));
-            WRECS.entityCount += 1;
-            return;
-        }
-    }
-    WRECS.entities[WRECS.entityCount] = malloc(sizeof(WREntity));
-    memcpy(WRECS.entities[WRECS.entityCount], entity, sizeof(WREntity));
-    WRECS.entityCount += 1;
-}
-
-void registerSystem(WRESystem *system)
-{
-    system->active = true;
-    if (WRECS.systemCount % INCREMENTAMOUNT == 0)
-    {
-        WRECS.systems = realloc(WRECS.systems, sizeof(WRESystem) * (WRECS.systemCount + INCREMENTAMOUNT));
-    }
-    for (uint64_t i = 0; i < WRECS.systemCount; i++)
-    {
-        if (!WRECS.systems[i]->active)
-        {
-            system->systemID = i;
-            WRECS.systems[i] = malloc(sizeof(WRESystem));
-            memcpy(WRECS.systems[i], system, sizeof(WRESystem));
-            WRECS.systemCount += 1;
-            return;
-        }
-    }
-    system->systemID = WRECS.systemCount;
-    WRECS.systems[WRECS.systemCount] = malloc(sizeof(WRESystem));
-    memcpy(WRECS.systems[WRECS.systemCount], system, sizeof(WRESystem));
-    WRECS.systemCount += 1;
-}
-
-WREComponent *getComponent(uint64_t compID)
-{
-    return WRECS.components[compID];
-}
-
-WREntity *getEntity(uint64_t entityID)
-{
-    return WRECS.entities[entityID];
-}
-
-WRESystem *getSystem(uint64_t SystemID)
-{
-    return WRECS.systems[SystemID];
-}
-void removeSystem(uint64_t systemID)
-{
-    WRESystem *sys = getSystem(systemID);
-    sys->active = false;
-    WRECS.systemCount -= 1;
-}
-
-void runECSInitFunctions()
-{
-    for (uint64_t i = 0; i < WRECS.componentCount; i++)
-    {
-        WRECS.components[i]->initializer(WRECS.components[i]);
-    }
-}
-
-uint64_t getEntityIndex(WREComponent comp, uint64_t entityID)
-{
-    for (uint64_t i = 0; i < comp.entityCount; i++)
-    {
-        if (comp.entityIDS[i] == entityID)
-        {
-            return i;
-        }
-    }
-}
-
-void destroyEntity(uint64_t entityID)
-{
-    WREntity *entity = getEntity(entityID);
-    entity->active = false;
-    for (uint64_t i = 0; i < entity->compCount; i++)
-    {
-        WREComponent *currentComponent = getComponent(entity->components[i]);
-        currentComponent->destructor(currentComponent, getEntityIndex(*currentComponent, entityID));
-    }
-    entity->compCount = 0;
-    WRECS.entityCount -= 1;
-}
-
 void runSystems()
 {
     for (uint64_t i = 0; i < WRECS.systemCount; i++)
@@ -190,15 +61,6 @@ void initializePipelines(WREngine *engine)
     setShaderSLSPRV(engine->Renderer.vkCore, &engine->spritePipeline, Shader, Len);
 }
 
-void meshInit(WREComponent *self, void *data);
-void meshDest(WREComponent *self, void *data);
-
-void registerDefaultComponents()
-{
-    WREComponent meshComp = {0};
-    registerComponent(&meshComp);
-}
-
 void launchEngine(WREngine *engine)
 {
     glfwVulkanSupported();
@@ -218,7 +80,6 @@ void launchEngine(WREngine *engine)
 
     initRenderer(&engine->Renderer);
     initializePipelines(engine);
-    runECSInitFunctions();
     while (!glfwWindowShouldClose(engine->Renderer.vkCore.window))
     {
         glfwPollEvents();
@@ -228,10 +89,6 @@ void launchEngine(WREngine *engine)
 
 void destroyEngine(WREngine *engine)
 {
-    for (uint64_t i = 0; i < WRECS.entityCount; i++)
-    {
-        destroyEntity(i);
-    }
     for (uint64_t i = 0; i < WRECS.systemCount; i++)
     {
         removeSystem(i);

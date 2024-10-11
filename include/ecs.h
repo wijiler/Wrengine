@@ -41,20 +41,34 @@ typedef struct
 
 typedef struct
 {
+    bool constructed;
     uint64_t entityCount;
     WREntity **entities;
     uint64_t componentCount;
     WREComponent **components;
+} WREScene;
+
+typedef struct
+{
     uint64_t systemCount;
     WRESystem **systems;
+    WREScene *activeScene;
 } systemManager;
 
 static systemManager WRECS = {0};
 void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
-void registerComponent(WREComponent *component);
-void registerEntity(WREntity *entity);
+void registerComponent(WREComponent *component, WREScene *scene);
+void registerEntity(WREntity *entity, WREScene *scene);
 void registerSystem(WRESystem *system);
-WREComponent *getComponent(uint64_t compID);
-WREntity *getEntity(uint64_t entityID);
+WREComponent *getComponent(uint64_t compID, WREScene scene);
+WREntity *getEntity(uint64_t entityID, WREScene scene);
 WRESystem *getSystem(uint64_t SystemID);
+
+WREScene createScene();
+void destroyScene(WREScene *scene);
+void setActiveScene(WREScene *scene);
+
+void destroyScene(WREScene *scene);
+void destroyEntity(uint64_t entityID, WREScene *scene);
+void removeSystem(uint64_t systemID);
 #endif

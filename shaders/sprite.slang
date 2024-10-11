@@ -15,8 +15,7 @@ struct Mesh
 const Mesh *ptrs;
 
 [vk_binding(0)]
-Sampler2DArray textures : register(t0)
-    : register(s0);
+Sampler2DArray textures;
 
 struct VertOutput
 {
