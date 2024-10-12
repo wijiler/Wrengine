@@ -24,7 +24,7 @@ project "Wrengine"
     filter "configurations:Debug"
         defines { "DEBUG" }
         symbols "On"
-        optimize "On"
+        sanitize {"Address"}
     filter "configurations:Release"
         optimize "On"
 

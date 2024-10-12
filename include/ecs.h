@@ -12,16 +12,13 @@ struct WREComponent
     uint64_t compID;
     ComponentFunction initializer;
     ComponentFunction destructor;
-    uint64_t entityCount;
-    uint64_t *entityIDS;
     void **entityData;
 };
 
 typedef struct
 {
     uint64_t entityID;
-    uint64_t compCount;
-    int64_t components[MAXCOMPONENTS];
+    uint8_t *components;
     bool active;
 } WREntity;
 
@@ -53,7 +50,6 @@ typedef struct
     WREScene *activeScene;
 } systemManager;
 
-static systemManager WRECS = {0};
 void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
 void registerComponent(WREComponent *component);
 void registerEntity(WREntity *entity, WREScene *scene);

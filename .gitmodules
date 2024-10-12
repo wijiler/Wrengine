@@ -1,6 +1,6 @@
 [submodule "Wrenderer"]
 	path = Wrenderer
 	url = https://github.com/wijiler/Wrenderer.git
-[submodule "include/stb"]
-	path = include/stb
+[submodule "include/libs/stb"]
+	path = include/libs/stb
 	url = https://github.com/nothings/stb.git
