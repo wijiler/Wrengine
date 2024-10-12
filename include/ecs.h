@@ -1,11 +1,10 @@
 #ifndef WRE_ECS_H__
 #define WRE_ECS_H__
-#define MAXCOMPONENTS 100
 #include <stdbool.h>
 #include <stdint.h>
 
 typedef struct WREComponent WREComponent;
-typedef void (*ComponentFunction)(WREComponent *self, uint64_t entityID);
+typedef void (*ComponentFunction)(WREComponent *self);
 
 struct WREComponent
 {
@@ -15,10 +14,13 @@ struct WREComponent
     void **entityData;
 };
 
+typedef void (*WREntitySystemfunction)(uint64_t entityID);
 typedef struct
 {
     uint64_t entityID;
+    uint64_t entitySysCount;
     uint8_t *components;
+    WREntitySystemfunction *entitySystems;
     bool active;
 } WREntity;
 
@@ -37,32 +39,21 @@ typedef struct
 
 typedef struct
 {
-    uint64_t entityCount;
-    WREntity **entities;
+    uint8_t *entities; // bitmask
 } WREScene;
 
-typedef struct
-{
-    uint64_t componentCount;
-    WREComponent **components;
-    uint64_t systemCount;
-    WRESystem **systems;
-    WREScene *activeScene;
-} systemManager;
-
 void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
+void addEntitySystem(WREntity *entity, WREntitySystemfunction function);
 void registerComponent(WREComponent *component);
 void registerEntity(WREntity *entity, WREScene *scene);
 void registerSystem(WRESystem *system);
 WREComponent *getComponent(uint64_t compID);
-WREntity *getEntity(uint64_t entityID, WREScene scene);
+WREntity *getEntity(uint64_t entityID);
 WRESystem *getSystem(uint64_t SystemID);
 
 WREScene createScene();
-void destroyScene(WREScene *scene);
 void setActiveScene(WREScene *scene);
 
-void destroyScene(WREScene *scene);
-void destroyEntity(uint64_t entityID, WREScene *scene);
+void destroyEntity(uint64_t entityID);
 void removeSystem(uint64_t systemID);
 #endif

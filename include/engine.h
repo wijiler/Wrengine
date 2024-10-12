@@ -7,13 +7,6 @@
 
 typedef struct
 {
-    float position[3];
-    float color[3];
-    float uv[2];
-} Vertex;
-
-typedef struct
-{
     graphicsPipeline spritePipeline;
     graphicsPipeline uiPipeline;
     graphicsPipeline PBRPipeline;
@@ -23,15 +16,13 @@ typedef struct
 
 typedef struct
 {
-    uint64_t meshIndex;
-    uint64_t textureID;
-    uint64_t indexCount;
-    uint64_t vertexCount;
-    uint64_t instanceCount;
-    renderer_t *Renderer;
-    Vertex *vertices;
-    uint32_t *indices;
-} MeshComponent;
+    float dimensions[2];
+    float position[2];
+    float zLayer;
+    char *imagePath;
+
+    renderer_t *renderer;
+} spriteComponent;
 
 void launchEngine(WREngine *engine);
 void destroyEngine(WREngine *engine);

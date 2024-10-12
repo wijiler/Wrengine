@@ -2,6 +2,16 @@
 #include <stdio.h>
 
 // ---ECSBEG
+typedef struct
+{
+    uint64_t componentCount;
+    WREComponent **components;
+    uint64_t systemCount;
+    WRESystem **systems;
+    WREScene *activeScene;
+    uint64_t entityCount;
+    WREntity **entities;
+} systemManager;
 systemManager WRECS = {0};
 #include <ecs.h>
 
@@ -15,10 +25,18 @@ void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
     entity->components = realloc(entity->components, WRECS.componentCount);
     entity->components[comp->compID] = 1;
 
-    comp->entityData = realloc(comp->entityData, WRECS.activeScene->entityCount + 1);
+    comp->entityData = realloc(comp->entityData, sizeof(void *) * (WRECS.componentCount));
     comp->entityData[entity->entityID] = constructionData;
+}
 
-    comp->initializer(comp, entity->entityID);
+void addEntitySystem(WREntity *entity, WREntitySystemfunction function)
+{
+    if (entity->entitySysCount % INCREMENTAMOUNT == 0)
+    {
+        entity->entitySystems = realloc(entity->entitySystems, sizeof(WREComponent) * (entity->entitySysCount + INCREMENTAMOUNT));
+    }
+    entity->entitySystems[entity->entitySysCount] = function;
+    entity->entitySysCount += 1;
 }
 
 void registerComponent(WREComponent *component)
@@ -36,24 +54,27 @@ void registerComponent(WREComponent *component)
 void registerEntity(WREntity *entity, WREScene *scene)
 {
     entity->active = true;
-    if (scene->entityCount % INCREMENTAMOUNT == 0)
+    scene->entities = realloc(scene->entities, sizeof(uint8_t) * (WRECS.entityCount) + 1);
+    if (WRECS.entityCount % INCREMENTAMOUNT == 0)
     {
-        scene->entities = realloc(scene->entities, sizeof(WREntity) * (scene->entityCount + INCREMENTAMOUNT));
+        WRECS.entities = realloc(WRECS.entities, sizeof(WREntity) * (WRECS.entityCount + INCREMENTAMOUNT));
     }
-    for (uint64_t i = 0; i < scene->entityCount; i++)
+    for (uint64_t i = 0; i < WRECS.entityCount; i++)
     {
-        if (!scene->entities[i]->active)
+        if (!WRECS.entities[i]->active)
         {
             entity->entityID = i;
-            scene->entities[i] = malloc(sizeof(WREntity));
-            memcpy(scene->entities[i], entity, sizeof(WREntity));
-            scene->entityCount += 1;
+            WRECS.entities[i] = malloc(sizeof(WREntity));
+            memcpy(WRECS.entities[i], entity, sizeof(WREntity));
+            WRECS.entityCount += 1;
+            scene->entities[entity->entityID] = 1;
             return;
         }
     }
-    scene->entities[scene->entityCount] = malloc(sizeof(WREntity));
-    memcpy(scene->entities[scene->entityCount], entity, sizeof(WREntity));
-    scene->entityCount += 1;
+    entity->entityID = WRECS.entityCount;
+    WRECS.entities[WRECS.entityCount] = malloc(sizeof(WREntity));
+    memcpy(WRECS.entities[WRECS.entityCount], entity, sizeof(WREntity));
+    WRECS.entityCount += 1;
 }
 
 void registerSystem(WRESystem *system)
@@ -85,9 +106,9 @@ WREComponent *getComponent(uint64_t compID)
     return WRECS.components[compID];
 }
 
-WREntity *getEntity(uint64_t entityID, WREScene scene)
+WREntity *getEntity(uint64_t entityID)
 {
-    return scene.entities[entityID];
+    return WRECS.entities[entityID];
 }
 
 WRESystem *getSystem(uint64_t SystemID)
@@ -101,19 +122,11 @@ void removeSystem(uint64_t systemID)
     WRECS.systemCount -= 1;
 }
 
-void destroyEntity(uint64_t entityID, WREScene *scene)
+void destroyEntity(uint64_t entityID)
 {
-    WREntity *entity = getEntity(entityID, *scene);
+    WREntity *entity = getEntity(entityID);
     entity->active = false;
-    for (uint64_t i = 0; i < WRECS.componentCount; i++)
-    {
-        if (entity->components[i] == 1)
-        {
-            WREComponent *currentComponent = getComponent(i);
-            currentComponent->destructor(currentComponent, entityID);
-        }
-    }
-    scene->entityCount -= 1;
+    WRECS.entityCount -= 1;
 }
 
 WREScene createScene()
@@ -123,43 +136,20 @@ WREScene createScene()
     return scene;
 }
 
-void destroyScene(WREScene *scene)
-{
-    for (uint64_t i = 0; i < scene->entityCount; i++)
-    {
-        destroyEntity(scene->entities[i]->entityID, scene);
-    }
-}
-
 void setActiveScene(WREScene *scene)
 {
     WRECS.activeScene = scene;
-
-    // for (uint64_t i = 0; i < scene->entityCount; i++)
-    // {
-    //     for (uint64_t c = 0; c < scene->entities[i]->compCount; c++)
-    //     {
-    //         uint64_t ccID = scene->entities[i]->components[c];
-    //         comps = realloc(comps, sizeof(uint64_t) * (compCount + 1));
-    //         comps[compCount] = ccID;
-    //         compCount += 1;
-    //     }
-    // }
-    // for (uint64_t i = 0; i < WRECS.systemCount; i++)
-    // {
-    //     for (uint64_t ci = 0; ci < WRECS.systems[i]->touchCount; ci++)
-    //     {
-    //         for (uint64_t c = 0; c < compCount; c++)
-    //         {
-    //             if (WRECS.systems[i]->componentIDs[ci] == comps[c])
-    //             {
-    //                 WRECS.systems[i]->active = true;
-    //             }
-    //         }
-    //     }
-    // }
 }
-
+WREComponent createComponent(ComponentFunction init, ComponentFunction destroy)
+{
+    WREComponent comp = {
+        0,
+        init,
+        destroy,
+        NULL,
+    };
+    return comp;
+}
 // --ECSEND
 
 void runEntitySystems()
@@ -171,6 +161,17 @@ void runEntitySystems()
             WRECS.systems[i]->touchCount,
             WRECS.systems[i]->data,
             WRECS.systems[i]->datacount);
+    }
+    for (uint64_t i = 0; i < WRECS.entityCount; i++)
+    {
+        WREntity *cEnt = WRECS.entities[i];
+        if (WRECS.activeScene->entities[cEnt->entityID] == 1)
+        {
+            for (uint64_t i = 0; i < cEnt->entitySysCount; i++)
+            {
+                cEnt->entitySystems[i](cEnt->entityID);
+            }
+        }
     }
 }
 
@@ -217,6 +218,14 @@ void initializePipelines(WREngine *engine)
     setShaderSLSPRV(engine->Renderer.vkCore, &engine->spritePipeline, Shader, Len);
 }
 
+void spriteInit(WREComponent *self);
+void spriteDestroy(WREComponent *self);
+void initDefaultComponents()
+{
+    // WREComponent sprite = createComponent(spriteInit, spriteDestroy);
+    // registerComponent(&sprite);
+}
+
 void launchEngine(WREngine *engine)
 {
     glfwVulkanSupported();
@@ -236,6 +245,10 @@ void launchEngine(WREngine *engine)
 
     initRenderer(&engine->Renderer);
     initializePipelines(engine);
+    for (uint64_t i = 0; i < WRECS.componentCount; i++)
+    {
+        WRECS.components[i]->initializer(WRECS.components[i]);
+    }
     while (!glfwWindowShouldClose(engine->Renderer.vkCore.window))
     {
         glfwPollEvents();
@@ -245,13 +258,19 @@ void launchEngine(WREngine *engine)
 
 void destroyEngine(WREngine *engine)
 {
+    for (uint64_t i = 0; i < WRECS.componentCount; i++)
+    {
+        WRECS.components[i]->destructor(WRECS.components[i]);
+    }
+    for (uint64_t i = 0; i < WRECS.entityCount; i++)
+    {
+        WREntity *entity = WRECS.entities[i];
+        if (entity->active)
+        {
+            destroyEntity(i);
+        }
+    }
     destroyRenderer(&engine->Renderer);
     glfwDestroyWindow(engine->Renderer.vkCore.window);
     glfwTerminate();
 }
-
-typedef struct
-{
-    uint64_t textureIndex;
-    VkDeviceAddress vertBuf;
-} meshData;
