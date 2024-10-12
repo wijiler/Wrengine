@@ -18,18 +18,19 @@ void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
     comp->entityIDS[comp->entityCount] = entity->entityID;
     comp->entityData[comp->entityCount] = constructionData;
     comp->entityCount += 1;
+    comp->initializer(comp, entity->entityID);
 }
 
-void registerComponent(WREComponent *component, WREScene *scene)
+void registerComponent(WREComponent *component)
 {
-    if (scene->componentCount % INCREMENTAMOUNT == 0)
+    if (WRECS.componentCount % INCREMENTAMOUNT == 0)
     {
-        scene->components = realloc(scene->components, sizeof(WREComponent) * (scene->componentCount + INCREMENTAMOUNT));
+        WRECS.components = realloc(WRECS.components, sizeof(WREComponent) * (WRECS.componentCount + INCREMENTAMOUNT));
     }
-    component->compID = scene->componentCount;
-    scene->components[scene->componentCount] = malloc(sizeof(WREComponent));
-    memcpy(scene->components[scene->componentCount], component, sizeof(WREComponent));
-    scene->componentCount += 1;
+    component->compID = WRECS.componentCount;
+    WRECS.components[WRECS.componentCount] = malloc(sizeof(WREComponent));
+    memcpy(WRECS.components[WRECS.componentCount], component, sizeof(WREComponent));
+    WRECS.componentCount += 1;
 }
 
 void registerEntity(WREntity *entity, WREScene *scene)
@@ -78,9 +79,9 @@ void registerSystem(WRESystem *system)
     WRECS.systemCount += 1;
 }
 
-WREComponent *getComponent(uint64_t compID, WREScene scene)
+WREComponent *getComponent(uint64_t compID)
 {
-    return scene.components[compID];
+    return WRECS.components[compID];
 }
 
 WREntity *getEntity(uint64_t entityID, WREScene scene)
@@ -117,7 +118,7 @@ void destroyEntity(uint64_t entityID, WREScene *scene)
     entity->active = false;
     for (uint64_t i = 0; i < entity->compCount; i++)
     {
-        WREComponent *currentComponent = getComponent(entity->components[i], *scene);
+        WREComponent *currentComponent = getComponent(entity->components[i]);
         int64_t index = getEntityIndex(*currentComponent, entityID);
         currentComponent->destructor(currentComponent, index);
     }
@@ -125,14 +126,10 @@ void destroyEntity(uint64_t entityID, WREScene *scene)
     scene->entityCount -= 1;
 }
 
-void registerDefaultComponents(WREScene *scene)
-{
-}
-
 WREScene createScene()
 {
     WREScene scene = {0};
-    registerDefaultComponents(&scene);
+    // logic might go here one day
     return scene;
 }
 
@@ -142,28 +139,34 @@ void destroyScene(WREScene *scene)
     {
         destroyEntity(scene->entities[i]->entityID, scene);
     }
-    scene->constructed = false;
 }
 
 void setActiveScene(WREScene *scene)
 {
     WRECS.activeScene = scene;
-    if (!scene->constructed)
+
+    uint64_t compCount = 0;
+    uint64_t *comps = NULL;
+    for (uint64_t i = 0; i < scene->entityCount; i++)
     {
-        for (uint64_t i = 0; i < scene->componentCount; i++)
+        for (uint64_t c = 0; c < scene->entities[i]->compCount; c++)
         {
-            scene->components[i]->initializer(WRECS.activeScene->components[i]);
+            uint64_t ccID = scene->entities[i]->components[c];
+            comps = realloc(comps, sizeof(uint64_t) * (compCount + 1));
+            comps[compCount] = ccID;
+            compCount += 1;
         }
     }
-    scene->constructed = true;
-    for (uint64_t i = 0; i < WRECS.activeScene->componentCount; i++)
+    for (uint64_t i = 0; i < WRECS.systemCount; i++)
     {
-        for (uint64_t s = 0; s < WRECS.systemCount; s++)
+        for (uint64_t ci = 0; ci < WRECS.systems[i]->touchCount; ci++)
         {
-            for (uint64_t t = 0; t < WRECS.systems[s]->touchCount; t++)
+            for (uint64_t c = 0; c < compCount; c++)
             {
-                WRECS.systems[s]->active = true;
-                break;
+                if (WRECS.systems[i]->componentIDs[ci] == comps[c])
+                {
+                    WRECS.systems[i]->active = true;
+                }
             }
         }
     }
