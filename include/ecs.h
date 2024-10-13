@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 typedef struct WREComponent WREComponent;
-typedef void (*ComponentFunction)(WREComponent *self);
+typedef void (*ComponentFunction)(WREComponent *self, uint64_t entityID);
 
 struct WREComponent
 {
@@ -24,7 +24,7 @@ typedef struct
     bool active;
 } WREntity;
 
-typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount);
+typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount);
 
 typedef struct
 {

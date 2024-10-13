@@ -1,6 +1,10 @@
 #include <engine.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
 #include <stdio.h>
 
+// ---GLOBALS
+MeshHandler spriteHandler = {0};
 // ---ECSBEG
 typedef struct
 {
@@ -59,6 +63,7 @@ void registerEntity(WREntity *entity, WREScene *scene)
     {
         WRECS.entities = realloc(WRECS.entities, sizeof(WREntity) * (WRECS.entityCount + INCREMENTAMOUNT));
     }
+
     for (uint64_t i = 0; i < WRECS.entityCount; i++)
     {
         if (!WRECS.entities[i]->active)
@@ -68,10 +73,25 @@ void registerEntity(WREntity *entity, WREScene *scene)
             memcpy(WRECS.entities[i], entity, sizeof(WREntity));
             WRECS.entityCount += 1;
             scene->entities[entity->entityID] = 1;
+            for (uint64_t i = 0; i < WRECS.componentCount; i++)
+            {
+                if (entity->components[i] == 1)
+                {
+                    WRECS.components[i]->initializer(WRECS.components[i], entity->entityID);
+                }
+            }
             return;
         }
     }
+
     entity->entityID = WRECS.entityCount;
+    for (uint64_t i = 0; i < WRECS.componentCount; i++)
+    {
+        if (entity->components[i] == 1)
+        {
+            WRECS.components[i]->initializer(WRECS.components[i], entity->entityID);
+        }
+    }
     WRECS.entities[WRECS.entityCount] = malloc(sizeof(WREntity));
     memcpy(WRECS.entities[WRECS.entityCount], entity, sizeof(WREntity));
     WRECS.entityCount += 1;
@@ -126,6 +146,13 @@ void destroyEntity(uint64_t entityID)
 {
     WREntity *entity = getEntity(entityID);
     entity->active = false;
+    for (uint64_t i = 0; i < WRECS.componentCount; i++)
+    {
+        if (entity->components[i] == 1)
+        {
+            WRECS.components[i]->destructor(WRECS.components[i], entity->entityID);
+        }
+    }
     WRECS.entityCount -= 1;
 }
 
@@ -218,16 +245,17 @@ void initializePipelines(WREngine *engine)
     setShaderSLSPRV(engine->Renderer.vkCore, &engine->spritePipeline, Shader, Len);
 }
 
-void spriteInit(WREComponent *self);
-void spriteDestroy(WREComponent *self);
+void spriteInit(WREComponent *self, uint64_t entityID);
+void spriteDestroy(WREComponent *self, uint64_t entityID);
 void initDefaultComponents()
 {
-    // WREComponent sprite = createComponent(spriteInit, spriteDestroy);
-    // registerComponent(&sprite);
+    WREComponent sprite = createComponent(spriteInit, spriteDestroy);
+    registerComponent(&sprite);
 }
 
 void launchEngine(WREngine *engine)
 {
+    GraphBuilder gb = {0};
     glfwVulkanSupported();
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
@@ -242,13 +270,10 @@ void launchEngine(WREngine *engine)
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
-
     initRenderer(&engine->Renderer);
+    engine->Renderer.rg = &gb; // <- we should prolly think more critically about this object's lifetime when we do multithreading?
     initializePipelines(engine);
-    for (uint64_t i = 0; i < WRECS.componentCount; i++)
-    {
-        WRECS.components[i]->initializer(WRECS.components[i]);
-    }
+
     while (!glfwWindowShouldClose(engine->Renderer.vkCore.window))
     {
         glfwPollEvents();
@@ -258,10 +283,6 @@ void launchEngine(WREngine *engine)
 
 void destroyEngine(WREngine *engine)
 {
-    for (uint64_t i = 0; i < WRECS.componentCount; i++)
-    {
-        WRECS.components[i]->destructor(WRECS.components[i]);
-    }
     for (uint64_t i = 0; i < WRECS.entityCount; i++)
     {
         WREntity *entity = WRECS.entities[i];
@@ -273,4 +294,78 @@ void destroyEngine(WREngine *engine)
     destroyRenderer(&engine->Renderer);
     glfwDestroyWindow(engine->Renderer.vkCore.window);
     glfwTerminate();
+}
+
+typedef struct
+{
+    uint16_t textureID;
+    VkDeviceAddress vertices;
+} Sprite;
+
+void spriteInit(WREComponent *self, uint64_t entityID)
+{
+    spriteComponent *data = self->entityData[entityID];
+    renderer_t renderer = *data->renderer;
+    BufferCreateInfo bCI = {
+        sizeof(transform2D) * data->instanceCount,
+        BUFFER_USAGE_UNIFORM_BUFFER | BUFFER_USAGE_TRANSFER_DST,
+        DEVICE_ONLY,
+    };
+    Buffer vBuf = {0};
+    createBuffer(renderer.vkCore, bCI, &vBuf);
+    bCI.usage = BUFFER_USAGE_STORAGE_BUFFER;
+    bCI.access = DEVICE_ONLY;
+    createBuffer(renderer.vkCore, bCI, &vBuf);
+    pushDataToBuffer(data->transforms, sizeof(transform2D) * data->instanceCount, vBuf, 0);
+
+    int texWidth, texHeight, texChannels;
+    stbi_uc *img = stbi_load(data->imagePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    Texture tex = createTexture(renderer.vkCore, texWidth, texHeight);
+    BufferCreateInfo tci = {
+        texWidth * texHeight * 4,
+        BUFFER_USAGE_TRANSFER_SRC,
+        CPU_ONLY,
+    };
+    Buffer buf;
+    createBuffer(renderer.vkCore, tci, &buf);
+    pushDataToBuffer(img, texWidth * texHeight * 4, buf, 0);
+    copyDataToTextureImage(renderer.vkCore, &tex.img, &buf, texWidth, texHeight);
+    destroyBuffer(buf, renderer.vkCore);
+    stbi_image_free(img);
+    write_textureDescriptorSet(renderer.vkCore, tex.img.imgview, renderer.vkCore.linearSampler, 0);
+
+    Sprite sprite = {
+        tex.index,
+        vBuf.gpuAddress,
+    };
+    Mesh mesh = createMesh(*data->renderer, 1, &sprite, 6, (uint32_t[6]){0, 1, 2, 2, 3, 0}, data->instanceCount, sizeof(sprite));
+    submitMesh(mesh, &spriteHandler);
+}
+
+void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount)
+{
+    const char *passName = "SpritePass";
+    WREngine *engine = data[0];
+    removePass(engine->Renderer.rg, passName);
+    RenderPass pass = sceneDraw(&engine->Renderer, &spriteHandler);
+    pass.gPl = engine->spritePipeline;
+
+    // update
+
+    WREComponent *comp = getComponent(componentIDs[0]);
+    for (uint64_t j = 0; j < WRECS.entityCount; j++)
+    {
+        spriteComponent *compDat = (spriteComponent *)comp->entityData[j];
+        if (compDat == NULL)
+            continue;
+        VkMappedMemoryRange memRange = {
+            VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            NULL,
+            compDat->data.associatedMemory,
+            0,
+            VK_WHOLE_SIZE,
+        };
+        vkFlushMappedMemoryRanges(engine->Renderer.vkCore.lDev, 1, &memRange); // TODO: we can batch these, but we need to figure out how to batch pushing data as well
+        pushDataToBuffer(compDat->transforms, sizeof(transform2D) * compDat->instanceCount, compDat->data, 0);
+    }
 }

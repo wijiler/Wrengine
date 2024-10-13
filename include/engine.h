@@ -16,12 +16,29 @@ typedef struct
 
 typedef struct
 {
-    float dimensions[2];
-    float position[2];
-    float zLayer;
+    float x, y;
+} Vector2;
+
+typedef struct
+{
+    float x, y, z;
+} Vector3;
+
+typedef struct
+{
+    Vector3 pos;
+    Vector2 scale;
+    float rotation;
+} transform2D;
+
+typedef struct
+{
+    transform2D *transforms;
+    int instanceCount;
     char *imagePath;
 
     renderer_t *renderer;
+    Buffer data;
 } spriteComponent;
 
 void launchEngine(WREngine *engine);
