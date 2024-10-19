@@ -52,6 +52,8 @@ WREntity *getEntity(uint64_t entityID);
 WRESystem *getSystem(uint64_t SystemID);
 
 WREScene createScene();
+WREComponent createComponent(ComponentFunction init, ComponentFunction destroy);
+WREntity createEntity();
 void setActiveScene(WREScene *scene);
 
 void destroyEntity(uint64_t entityID);

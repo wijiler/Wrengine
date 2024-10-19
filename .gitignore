@@ -17,3 +17,4 @@ Makefile
 Binaries/
 obj/
 bin/
+push.bat

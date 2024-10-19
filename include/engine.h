@@ -39,7 +39,10 @@ typedef struct
 
     renderer_t *renderer;
     Buffer data;
+    VkDeviceAddress meshAddr;
 } spriteComponent;
+
+WREComponent spriteComp;
 
 void launchEngine(WREngine *engine);
 void destroyEngine(WREngine *engine);

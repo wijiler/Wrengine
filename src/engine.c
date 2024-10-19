@@ -169,13 +169,22 @@ void setActiveScene(WREScene *scene)
 }
 WREComponent createComponent(ComponentFunction init, ComponentFunction destroy)
 {
-    WREComponent comp = {
+    return (WREComponent){
         0,
         init,
         destroy,
         NULL,
     };
-    return comp;
+}
+WREntity createEntity()
+{
+    return (WREntity){
+        0,
+        0,
+        NULL,
+        NULL,
+        false,
+    };
 }
 // --ECSEND
 
@@ -249,8 +258,8 @@ void spriteInit(WREComponent *self, uint64_t entityID);
 void spriteDestroy(WREComponent *self, uint64_t entityID);
 void initDefaultComponents()
 {
-    WREComponent sprite = createComponent(spriteInit, spriteDestroy);
-    registerComponent(&sprite);
+    spriteComp = createComponent(spriteInit, spriteDestroy);
+    registerComponent(&spriteComp);
 }
 
 void launchEngine(WREngine *engine)
@@ -273,7 +282,7 @@ void launchEngine(WREngine *engine)
     initRenderer(&engine->Renderer);
     engine->Renderer.rg = &gb; // <- we should prolly think more critically about this object's lifetime when we do multithreading?
     initializePipelines(engine);
-
+    initDefaultComponents();
     while (!glfwWindowShouldClose(engine->Renderer.vkCore.window))
     {
         glfwPollEvents();
@@ -290,6 +299,10 @@ void destroyEngine(WREngine *engine)
         {
             destroyEntity(i);
         }
+    }
+    for (uint64_t i = 0; i < WRECS.componentCount; i++)
+    {
+        free(WRECS.components[i]->entityData);
     }
     destroyRenderer(&engine->Renderer);
     glfwDestroyWindow(engine->Renderer.vkCore.window);
@@ -333,13 +346,14 @@ void spriteInit(WREComponent *self, uint64_t entityID)
     destroyBuffer(buf, renderer.vkCore);
     stbi_image_free(img);
     write_textureDescriptorSet(renderer.vkCore, tex.img.imgview, renderer.vkCore.linearSampler, 0);
-
+    data->data = buf;
     Sprite sprite = {
         tex.index,
         vBuf.gpuAddress,
     };
     Mesh mesh = createMesh(*data->renderer, 1, &sprite, 6, (uint32_t[6]){0, 1, 2, 2, 3, 0}, data->instanceCount, sizeof(sprite));
     submitMesh(mesh, &spriteHandler);
+    data->meshAddr = mesh.verticies.gpuAddress;
 }
 
 void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount)
@@ -368,4 +382,24 @@ void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint6
         vkFlushMappedMemoryRanges(engine->Renderer.vkCore.lDev, 1, &memRange); // TODO: we can batch these, but we need to figure out how to batch pushing data as well
         pushDataToBuffer(compDat->transforms, sizeof(transform2D) * compDat->instanceCount, compDat->data, 0);
     }
+}
+void spriteDestroy(WREComponent *self, uint64_t entityID)
+{
+    spriteComponent *comp = self->entityData[entityID];
+    removeMesh((Mesh){
+                   (Buffer){
+                       0,
+                       0,
+                       0,
+                       NULL,
+                       NULL,
+                       NULL,
+                       comp->meshAddr,
+                   },
+                   (Buffer){0},
+                   0,
+               },
+               &spriteHandler, *comp->renderer);
+    destroyBuffer(comp->data, comp->renderer->vkCore);
+    self->entityData[entityID] = NULL;
 }
