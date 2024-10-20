@@ -5,7 +5,6 @@ project "Wrengine"
     architecture "x64"
     outputdir = "%{cfg.system}-%{cfg.architecture}/%{cfg.buildcfg}"
     kind "ConsoleApp"
-    toolset "msc"
     cdialect "C99"
 
     targetdir("%{wks.location}/Binaries/" .. outputdir .. "/%{prj.name}")
@@ -34,10 +33,16 @@ project "Wrengine"
     filter "system:linux"
         defines { "VK_USE_PLATFORM_XLIB_KHR" }
     filter ""
-    filter "action:gmake"
-    filter ""
 
     prebuildcommands {
         "compileShaders.bat"
     }
+
+    filter "action:gmake"
+    toolset "clang"
+    buildoptions {"-Wextra", "-Wall"}
+    filter "not action:gmake"
+    toolset "msc"
+    filter ""
+
 include "Wrenderer/premake5.lua"
