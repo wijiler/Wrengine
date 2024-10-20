@@ -33,7 +33,7 @@ typedef struct
     uint64_t datacount;
     WRESystemfunction function;
     bool active;
-    void *data;
+    void **data;
     uint64_t *componentIDs;
 } WRESystem;
 

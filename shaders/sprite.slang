@@ -61,6 +61,7 @@ float3 transform(Vertex vert, uint32_t id)
     rPos.y *= vert.scale.y;
 
     rPos = scale(rPos, vert.position, scaleFactor);
+    return rPos;
 }
 
 [shader("vertex")]

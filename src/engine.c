@@ -5,6 +5,7 @@
 
 // ---GLOBALS
 MeshHandler spriteHandler = {0};
+WREComponent spriteComp = {0};
 // ---ECSBEG
 typedef struct
 {
@@ -26,11 +27,16 @@ systemManager WRECS = {0};
 
 void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
 {
-    entity->components = realloc(entity->components, WRECS.componentCount);
-    entity->components[comp->compID] = 1;
+    WREntity *entt = getEntity(entity->entityID);
+    entt->components = realloc(entt->components, sizeof(uint8_t) * WRECS.componentCount);
+    entt->components[comp->compID] = 1;
+    entity->components = entt->components;
+    WREComponent *rcomp = getComponent(comp->compID);
+    rcomp->entityData = realloc(comp->entityData, sizeof(void *) * (WRECS.entityCount));
+    rcomp->entityData[entity->entityID] = constructionData;
+    comp->entityData = comp->entityData;
 
-    comp->entityData = realloc(comp->entityData, sizeof(void *) * (WRECS.componentCount));
-    comp->entityData[entity->entityID] = constructionData;
+    rcomp->initializer(rcomp, entity->entityID);
 }
 
 void addEntitySystem(WREntity *entity, WREntitySystemfunction function)
@@ -58,7 +64,8 @@ void registerComponent(WREComponent *component)
 void registerEntity(WREntity *entity, WREScene *scene)
 {
     entity->active = true;
-    scene->entities = realloc(scene->entities, sizeof(uint8_t) * (WRECS.entityCount) + 1);
+    scene->entities = realloc(scene->entities, sizeof(uint8_t) * (WRECS.entityCount + 1));
+    scene->entities[entity->entityID] = 1;
     if (WRECS.entityCount % INCREMENTAMOUNT == 0)
     {
         WRECS.entities = realloc(WRECS.entities, sizeof(WREntity) * (WRECS.entityCount + INCREMENTAMOUNT));
@@ -72,26 +79,11 @@ void registerEntity(WREntity *entity, WREScene *scene)
             WRECS.entities[i] = malloc(sizeof(WREntity));
             memcpy(WRECS.entities[i], entity, sizeof(WREntity));
             WRECS.entityCount += 1;
-            scene->entities[entity->entityID] = 1;
-            for (uint64_t i = 0; i < WRECS.componentCount; i++)
-            {
-                if (entity->components[i] == 1)
-                {
-                    WRECS.components[i]->initializer(WRECS.components[i], entity->entityID);
-                }
-            }
             return;
         }
     }
 
     entity->entityID = WRECS.entityCount;
-    for (uint64_t i = 0; i < WRECS.componentCount; i++)
-    {
-        if (entity->components[i] == 1)
-        {
-            WRECS.components[i]->initializer(WRECS.components[i], entity->entityID);
-        }
-    }
     WRECS.entities[WRECS.entityCount] = malloc(sizeof(WREntity));
     memcpy(WRECS.entities[WRECS.entityCount], entity, sizeof(WREntity));
     WRECS.entityCount += 1;
@@ -255,11 +247,22 @@ void initializePipelines(WREngine *engine)
 }
 
 void spriteInit(WREComponent *self, uint64_t entityID);
+void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount);
 void spriteDestroy(WREComponent *self, uint64_t entityID);
-void initDefaultComponents()
+void initDefaultComponents(WREngine *engine)
 {
     spriteComp = createComponent(spriteInit, spriteDestroy);
     registerComponent(&spriteComp);
+    WRESystem spriteSys = {
+        0,
+        1,
+        1,
+        spriteRender,
+        false,
+        (void *[1]){engine},
+        (uint64_t[1]){spriteComp.compID},
+    };
+    registerSystem(&spriteSys);
 }
 
 void launchEngine(WREngine *engine)
@@ -282,7 +285,11 @@ void launchEngine(WREngine *engine)
     initRenderer(&engine->Renderer);
     engine->Renderer.rg = &gb; // <- we should prolly think more critically about this object's lifetime when we do multithreading?
     initializePipelines(engine);
-    initDefaultComponents();
+    initDefaultComponents(engine);
+    for (uint64_t i = 0; i < engine->startupTaskCount; i++)
+    {
+        engine->startupTasks[i](engine);
+    }
     while (!glfwWindowShouldClose(engine->Renderer.vkCore.window))
     {
         glfwPollEvents();
@@ -309,6 +316,14 @@ void destroyEngine(WREngine *engine)
     glfwTerminate();
 }
 
+void addStartupTask(WREngine *engine, startupTask task)
+{
+    engine->startupTasks = realloc(engine->startupTasks, sizeof(startupTask) * (engine->startupTaskCount + 1));
+    engine->startupTasks[engine->startupTaskCount] = task;
+    engine->startupTaskCount += 1;
+}
+
+/// ------------
 typedef struct
 {
     uint16_t textureID;
@@ -359,9 +374,10 @@ void spriteInit(WREComponent *self, uint64_t entityID)
 void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount)
 {
     const char *passName = "SpritePass";
-    WREngine *engine = data[0];
+    WREngine *engine = (WREngine *)data[0];
     removePass(engine->Renderer.rg, passName);
-    RenderPass pass = sceneDraw(&engine->Renderer, &spriteHandler);
+    RenderPass pass = sceneDraw(&engine->Renderer, &spriteHandler, passName);
+    addPass(engine->Renderer.rg, &pass);
     pass.gPl = engine->spritePipeline;
 
     // update

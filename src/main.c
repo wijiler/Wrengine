@@ -1,39 +1,28 @@
 #include <engine.h>
-#include <stdio.h>
+WREScene scene = {0};
 
-void thing(WREComponent *self, uint64_t id)
+void startTask(WREngine *engine)
 {
-    printf("hi\n");
-}
-void thing2(WREComponent *self, uint64_t id)
-{
-    printf("hi but different\n");
-}
+    setActiveScene(&scene);
 
-void thing3(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount)
-{
-    printf("hi but different2\n");
+    WREntity entity = createEntity();
+    registerEntity(&entity, &scene);
+    spriteComponent sprite = {
+        (transform2D[1]){{(Vector3){0, 0, 0}, (Vector2){1, 1}, 0}},
+        1,
+        "assets/birb.png",
+        &engine->Renderer,
+        {0},
+        0,
+    };
+    addComponent(&entity, &spriteComp, &sprite);
 }
 
 int main(void)
 {
+    scene = createScene();
     WREngine engine = {0};
-    WREScene scene = createScene();
-    setActiveScene(&scene);
-
-    WRESystem sys = {
-        0,
-        1,
-        0,
-        thing3,
-        true,
-        &engine,
-        &spriteComp.compID,
-    };
-    registerSystem(&sys);
-    WREntity entity = createEntity();
-    addComponent(&entity, &spriteComp, NULL);
-    registerEntity(&entity, &scene);
+    addStartupTask(&engine, startTask);
     launchEngine(&engine);
     destroyEngine(&engine);
 }

@@ -5,14 +5,20 @@
 #include <renderer.h>
 #include <stdbool.h>
 
-typedef struct
+typedef struct WREngine WREngine;
+typedef void (*startupTask)(WREngine *engine);
+
+struct WREngine
 {
     graphicsPipeline spritePipeline;
     graphicsPipeline uiPipeline;
     graphicsPipeline PBRPipeline;
     graphicsPipeline customizablePipeline;
     renderer_t Renderer;
-} WREngine;
+
+    uint64_t startupTaskCount;
+    startupTask *startupTasks;
+};
 
 typedef struct
 {
@@ -42,7 +48,9 @@ typedef struct
     VkDeviceAddress meshAddr;
 } spriteComponent;
 
-WREComponent spriteComp;
+extern WREComponent spriteComp;
+
+void addStartupTask(WREngine *engine, startupTask task);
 
 void launchEngine(WREngine *engine);
 void destroyEngine(WREngine *engine);
