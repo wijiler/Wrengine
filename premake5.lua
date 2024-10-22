@@ -27,7 +27,6 @@ project "Wrengine"
         optimize "On"
     filter ""
     filter "system:windows"
-        links { "user32", "msvcrt", "gdi32", "shell32", "libcmt" }
         defines { "VK_USE_PLATFORM_WIN32_KHR" }
     filter ""
     filter "system:linux"
@@ -40,6 +39,7 @@ project "Wrengine"
 
     filter "action:gmake"
     toolset "clang"
+    links { "user32", "msvcrt", "gdi32", "shell32", "libcmt" }
     buildoptions {"-Wextra", "-Wall"}
     filter "not action:gmake"
     toolset "msc"

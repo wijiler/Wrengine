@@ -34,7 +34,7 @@ void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
     WREComponent *rcomp = getComponent(comp->compID);
     rcomp->entityData = realloc(comp->entityData, sizeof(void *) * (WRECS.entityCount));
     rcomp->entityData[entity->entityID] = constructionData;
-    comp->entityData = comp->entityData;
+    comp->entityData = rcomp->entityData;
 
     rcomp->initializer(rcomp, entity->entityID);
 }
@@ -247,7 +247,7 @@ void initializePipelines(WREngine *engine)
 }
 
 void spriteInit(WREComponent *self, uint64_t entityID);
-void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount);
+void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount);
 void spriteDestroy(WREComponent *self, uint64_t entityID);
 void initDefaultComponents(WREngine *engine)
 {
@@ -259,8 +259,8 @@ void initDefaultComponents(WREngine *engine)
         1,
         spriteRender,
         false,
-        (void *[1]){engine},
-        (uint64_t[1]){spriteComp.compID},
+        engine,
+        &spriteComp.compID,
     };
     registerSystem(&spriteSys);
 }
@@ -326,42 +326,40 @@ void addStartupTask(WREngine *engine, startupTask task)
 /// ------------
 typedef struct
 {
-    uint16_t textureID;
+    uint64_t textureID;
     VkDeviceAddress vertices;
 } Sprite;
 
 void spriteInit(WREComponent *self, uint64_t entityID)
 {
     spriteComponent *data = self->entityData[entityID];
-    renderer_t renderer = *data->renderer;
+    renderer_t *renderer = data->renderer;
     BufferCreateInfo bCI = {
         sizeof(transform2D) * data->instanceCount,
-        BUFFER_USAGE_UNIFORM_BUFFER | BUFFER_USAGE_TRANSFER_DST,
-        DEVICE_ONLY,
+        BUFFER_USAGE_STORAGE_BUFFER,
+        CPU_ONLY,
     };
     Buffer vBuf = {0};
-    createBuffer(renderer.vkCore, bCI, &vBuf);
-    bCI.usage = BUFFER_USAGE_STORAGE_BUFFER;
-    bCI.access = DEVICE_ONLY;
-    createBuffer(renderer.vkCore, bCI, &vBuf);
+    createBuffer(renderer->vkCore, bCI, &vBuf);
     pushDataToBuffer(data->transforms, sizeof(transform2D) * data->instanceCount, vBuf, 0);
 
     int texWidth, texHeight, texChannels;
     stbi_uc *img = stbi_load(data->imagePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    Texture tex = createTexture(renderer.vkCore, texWidth, texHeight);
+    Texture tex = createTexture(renderer->vkCore, texWidth, texHeight);
     BufferCreateInfo tci = {
         texWidth * texHeight * 4,
         BUFFER_USAGE_TRANSFER_SRC,
         CPU_ONLY,
     };
     Buffer buf;
-    createBuffer(renderer.vkCore, tci, &buf);
+    createBuffer(renderer->vkCore, tci, &buf);
     pushDataToBuffer(img, texWidth * texHeight * 4, buf, 0);
-    copyDataToTextureImage(renderer.vkCore, &tex.img, &buf, texWidth, texHeight);
-    destroyBuffer(buf, renderer.vkCore);
+    copyDataToTextureImage(renderer->vkCore, &tex.img, &buf, texWidth, texHeight);
+    destroyBuffer(buf, renderer->vkCore);
     stbi_image_free(img);
-    write_textureDescriptorSet(renderer.vkCore, tex.img.imgview, renderer.vkCore.linearSampler, 0);
-    data->data = buf;
+    submitTexture(renderer, &tex, renderer->vkCore.linearSampler);
+
+    data->data = vBuf;
     Sprite sprite = {
         tex.index,
         vBuf.gpuAddress,
@@ -371,15 +369,25 @@ void spriteInit(WREComponent *self, uint64_t entityID)
     data->meshAddr = mesh.verticies.gpuAddress;
 }
 
-void spriteRender(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount)
+int index = 0;
+int frameindex = 0;
+VkOffset2D offset = {0, 0};
+void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount)
 {
-    const char *passName = "SpritePass";
-    WREngine *engine = (WREngine *)data[0];
+    frameindex += 1;
+    index = frameindex % FRAMECOUNT;
+    char *passName = "SpritePass";
+    WREngine *engine = (WREngine *)data;
     removePass(engine->Renderer.rg, passName);
     RenderPass pass = sceneDraw(&engine->Renderer, &spriteHandler, passName);
-    addPass(engine->Renderer.rg, &pass);
     pass.gPl = engine->spritePipeline;
+    pass.drawArea = (drawArea){
+        &offset,
+        &engine->Renderer.vkCore.extent,
+    };
+    addPass(engine->Renderer.rg, &pass);
 
+    drawRenderer(&engine->Renderer, index);
     // update
 
     WREComponent *comp = getComponent(componentIDs[0]);

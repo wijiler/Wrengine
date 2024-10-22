@@ -24,7 +24,7 @@ typedef struct
     bool active;
 } WREntity;
 
-typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void **data, uint64_t dataCount);
+typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount);
 
 typedef struct
 {
@@ -33,7 +33,7 @@ typedef struct
     uint64_t datacount;
     WRESystemfunction function;
     bool active;
-    void **data;
+    void *data;
     uint64_t *componentIDs;
 } WRESystem;
 
