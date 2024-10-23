@@ -344,6 +344,7 @@ void spriteInit(WREComponent *self, uint64_t entityID)
     pushDataToBuffer(data->transforms, sizeof(transform2D) * data->instanceCount, vBuf, 0);
 
     int texWidth, texHeight, texChannels;
+    stbi_set_flip_vertically_on_load(true);
     stbi_uc *img = stbi_load(data->imagePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     Texture tex = createTexture(renderer->vkCore, texWidth, texHeight);
     BufferCreateInfo tci = {
@@ -364,7 +365,7 @@ void spriteInit(WREComponent *self, uint64_t entityID)
         tex.index,
         vBuf.gpuAddress,
     };
-    Mesh mesh = createMesh(*data->renderer, 1, &sprite, 6, (uint32_t[6]){0, 1, 2, 2, 3, 0}, data->instanceCount, sizeof(sprite));
+    Mesh mesh = createMesh(*data->renderer, 1, &sprite, 6, (uint32_t[6]){0, 1, 2, 2, 3, 1}, data->instanceCount, sizeof(sprite));
     submitMesh(mesh, &spriteHandler);
     data->meshAddr = mesh.verticies.gpuAddress;
 }
