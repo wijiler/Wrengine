@@ -21,13 +21,12 @@ typedef struct
     bool active;
 } WREntity;
 
-typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount);
+typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void *data);
 
 typedef struct
 {
     uint64_t systemID;
     uint64_t touchCount;
-    uint64_t datacount;
     WRESystemfunction function;
     bool active;
     void *data;
@@ -61,6 +60,7 @@ WRESystem *getSystem(uint64_t SystemID);
 
 WREScene createScene();
 WREComponent createComponent(ComponentFunction init, ComponentFunction destroy);
+WRESystem createSystem(uint32_t componentCount, uint64_t components[], void *data);
 WREntity createEntity();
 void setActiveScene(WREScene *scene);
 

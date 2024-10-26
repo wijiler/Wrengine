@@ -148,3 +148,15 @@ WREntity createEntity()
         false,
     };
 }
+
+WRESystem createSystem(uint32_t componentCount, uint64_t components[], void *data)
+{
+    return (WRESystem){
+        0,
+        componentCount,
+        NULL,
+        false,
+        data,
+        components,
+    };
+}

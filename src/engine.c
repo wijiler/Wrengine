@@ -14,8 +14,7 @@ void runEntitySystems()
         WRECS.systems[i]->function(
             WRECS.systems[i]->componentIDs,
             WRECS.systems[i]->touchCount,
-            WRECS.systems[i]->data,
-            WRECS.systems[i]->datacount);
+            WRECS.systems[i]->data);
     }
 }
 
@@ -63,21 +62,14 @@ void initializePipelines(WREngine *engine)
 }
 
 void spriteInit(WREComponent *self, uint64_t entityID);
-void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount);
+void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data);
 void spriteDestroy(WREComponent *self, uint64_t entityID);
 void initDefaultComponents(WREngine *engine)
 {
     spriteComp = createComponent(spriteInit, spriteDestroy);
     registerComponent(&spriteComp);
-    WRESystem spriteSys = {
-        0,
-        1,
-        1,
-        spriteRender,
-        false,
-        engine,
-        &spriteComp.compID,
-    };
+    WRESystem spriteSys = createSystem(1, &spriteComp.compID, engine);
+    spriteSys.function = spriteRender;
     registerSystem(&spriteSys);
 }
 
@@ -197,7 +189,7 @@ void spriteInit(WREComponent *self, uint64_t entityID)
 int index = 0;
 int frameindex = 0;
 VkOffset2D offset = {0, 0};
-void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data, uint64_t dataCount)
+void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data)
 {
     frameindex += 1;
     index = frameindex % FRAMECOUNT;
