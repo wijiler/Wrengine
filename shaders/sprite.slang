@@ -59,7 +59,7 @@ float3 transform(Vertex vert, uint32_t id)
     rPos.x *= vert.scale.x;
     rPos.y *= vert.scale.y;
 
-    rPos = scale(rPos, vert.position, scaleFactor);
+    // rPos = scale(rPos, vert.position, scaleFactor);
     return rPos;
 }
 

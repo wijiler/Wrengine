@@ -6,179 +6,6 @@
 // ---GLOBALS
 MeshHandler spriteHandler = {0};
 WREComponent spriteComp = {0};
-// ---ECSBEG
-typedef struct
-{
-    uint64_t componentCount;
-    WREComponent **components;
-    uint64_t systemCount;
-    WRESystem **systems;
-    WREScene *activeScene;
-    uint64_t entityCount;
-    WREntity **entities;
-} systemManager;
-systemManager WRECS = {0};
-#include <ecs.h>
-
-#include <stdlib.h>
-#include <string.h>
-
-#define INCREMENTAMOUNT 100
-
-void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
-{
-    WREntity *entt = getEntity(entity->entityID);
-    entt->components = realloc(entt->components, sizeof(uint8_t) * WRECS.componentCount);
-    entt->components[comp->compID] = 1;
-    entity->components = entt->components;
-    WREComponent *rcomp = getComponent(comp->compID);
-    rcomp->entityData = realloc(comp->entityData, sizeof(void *) * (WRECS.entityCount));
-    rcomp->entityData[entity->entityID] = constructionData;
-    comp->entityData = rcomp->entityData;
-
-    rcomp->initializer(rcomp, entity->entityID);
-}
-
-void addEntitySystem(WREntity *entity, WREntitySystemfunction function)
-{
-    if (entity->entitySysCount % INCREMENTAMOUNT == 0)
-    {
-        entity->entitySystems = realloc(entity->entitySystems, sizeof(WREComponent) * (entity->entitySysCount + INCREMENTAMOUNT));
-    }
-    entity->entitySystems[entity->entitySysCount] = function;
-    entity->entitySysCount += 1;
-}
-
-void registerComponent(WREComponent *component)
-{
-    if (WRECS.componentCount % INCREMENTAMOUNT == 0)
-    {
-        WRECS.components = realloc(WRECS.components, sizeof(WREComponent) * (WRECS.componentCount + INCREMENTAMOUNT));
-    }
-    component->compID = WRECS.componentCount;
-    WRECS.components[WRECS.componentCount] = malloc(sizeof(WREComponent));
-    memcpy(WRECS.components[WRECS.componentCount], component, sizeof(WREComponent));
-    WRECS.componentCount += 1;
-}
-
-void registerEntity(WREntity *entity, WREScene *scene)
-{
-    entity->active = true;
-    scene->entities = realloc(scene->entities, sizeof(uint8_t) * (WRECS.entityCount + 1));
-    scene->entities[entity->entityID] = 1;
-    if (WRECS.entityCount % INCREMENTAMOUNT == 0)
-    {
-        WRECS.entities = realloc(WRECS.entities, sizeof(WREntity) * (WRECS.entityCount + INCREMENTAMOUNT));
-    }
-
-    for (uint64_t i = 0; i < WRECS.entityCount; i++)
-    {
-        if (!WRECS.entities[i]->active)
-        {
-            entity->entityID = i;
-            WRECS.entities[i] = malloc(sizeof(WREntity));
-            memcpy(WRECS.entities[i], entity, sizeof(WREntity));
-            WRECS.entityCount += 1;
-            return;
-        }
-    }
-
-    entity->entityID = WRECS.entityCount;
-    WRECS.entities[WRECS.entityCount] = malloc(sizeof(WREntity));
-    memcpy(WRECS.entities[WRECS.entityCount], entity, sizeof(WREntity));
-    WRECS.entityCount += 1;
-}
-
-void registerSystem(WRESystem *system)
-{
-    system->active = true;
-    if (WRECS.systemCount % INCREMENTAMOUNT == 0)
-    {
-        WRECS.systems = realloc(WRECS.systems, sizeof(WRESystem) * (WRECS.systemCount + INCREMENTAMOUNT));
-    }
-    for (uint64_t i = 0; i < WRECS.systemCount; i++)
-    {
-        if (!WRECS.systems[i]->active)
-        {
-            system->systemID = i;
-            WRECS.systems[i] = malloc(sizeof(WRESystem));
-            memcpy(WRECS.systems[i], system, sizeof(WRESystem));
-            WRECS.systemCount += 1;
-            return;
-        }
-    }
-    system->systemID = WRECS.systemCount;
-    WRECS.systems[WRECS.systemCount] = malloc(sizeof(WRESystem));
-    memcpy(WRECS.systems[WRECS.systemCount], system, sizeof(WRESystem));
-    WRECS.systemCount += 1;
-}
-
-WREComponent *getComponent(uint64_t compID)
-{
-    return WRECS.components[compID];
-}
-
-WREntity *getEntity(uint64_t entityID)
-{
-    return WRECS.entities[entityID];
-}
-
-WRESystem *getSystem(uint64_t SystemID)
-{
-    return WRECS.systems[SystemID];
-}
-void removeSystem(uint64_t systemID)
-{
-    WRESystem *sys = getSystem(systemID);
-    sys->active = false;
-    WRECS.systemCount -= 1;
-}
-
-void destroyEntity(uint64_t entityID)
-{
-    WREntity *entity = getEntity(entityID);
-    entity->active = false;
-    for (uint64_t i = 0; i < WRECS.componentCount; i++)
-    {
-        if (entity->components[i] == 1)
-        {
-            WRECS.components[i]->destructor(WRECS.components[i], entity->entityID);
-        }
-    }
-    WRECS.entityCount -= 1;
-}
-
-WREScene createScene()
-{
-    WREScene scene = {0};
-    // logic might go here one day
-    return scene;
-}
-
-void setActiveScene(WREScene *scene)
-{
-    WRECS.activeScene = scene;
-}
-WREComponent createComponent(ComponentFunction init, ComponentFunction destroy)
-{
-    return (WREComponent){
-        0,
-        init,
-        destroy,
-        NULL,
-    };
-}
-WREntity createEntity()
-{
-    return (WREntity){
-        0,
-        0,
-        NULL,
-        NULL,
-        false,
-    };
-}
-// --ECSEND
 
 void runEntitySystems()
 {
@@ -339,25 +166,33 @@ void spriteInit(WREComponent *self, uint64_t entityID)
         BUFFER_USAGE_STORAGE_BUFFER,
         CPU_ONLY,
     };
+
     Buffer vBuf = {0};
+
     createBuffer(renderer->vkCore, bCI, &vBuf);
     pushDataToBuffer(data->transforms, sizeof(transform2D) * data->instanceCount, vBuf, 0);
 
-    int texWidth, texHeight, texChannels;
     stbi_set_flip_vertically_on_load(true);
+
+    int texWidth, texHeight, texChannels;
     stbi_uc *img = stbi_load(data->imagePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     Texture tex = createTexture(renderer->vkCore, texWidth, texHeight);
+
     BufferCreateInfo tci = {
         texWidth * texHeight * 4,
         BUFFER_USAGE_TRANSFER_SRC,
         CPU_ONLY,
     };
     Buffer buf;
+
     createBuffer(renderer->vkCore, tci, &buf);
     pushDataToBuffer(img, texWidth * texHeight * 4, buf, 0);
     copyDataToTextureImage(renderer->vkCore, &tex.img, &buf, texWidth, texHeight);
+
     destroyBuffer(buf, renderer->vkCore);
     stbi_image_free(img);
+    stbi_set_flip_vertically_on_load(false);
+
     submitTexture(renderer, &tex, renderer->vkCore.linearSampler);
 
     data->data = vBuf;

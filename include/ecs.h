@@ -42,6 +42,18 @@ typedef struct
     uint8_t *entities; // bitmask
 } WREScene;
 
+typedef struct
+{
+    uint64_t componentCount;
+    WREComponent **components;
+    uint64_t systemCount;
+    WRESystem **systems;
+    WREScene *activeScene;
+    uint64_t entityCount;
+    WREntity **entities;
+} systemManager;
+extern systemManager WRECS;
+
 void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
 void addEntitySystem(WREntity *entity, WREntitySystemfunction function);
 void registerComponent(WREComponent *component);

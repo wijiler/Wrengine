@@ -14,11 +14,12 @@ void startTask(WREngine *engine)
 {
     setActiveScene(&scene);
     trans = (transform2D){
-        (Vector3){0,0,0},
-        (Vector2){1,1},
+        (Vector3){0, 0, 0},
+        (Vector2){1, 1},
         0,
     };
     WREntity entity = createEntity();
+
     registerEntity(&entity, &scene);
 
     addComponent(&entity, &spriteComp, &sprite);
