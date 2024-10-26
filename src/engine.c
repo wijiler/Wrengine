@@ -17,17 +17,6 @@ void runEntitySystems()
             WRECS.systems[i]->data,
             WRECS.systems[i]->datacount);
     }
-    for (uint64_t i = 0; i < WRECS.entityCount; i++)
-    {
-        WREntity *cEnt = WRECS.entities[i];
-        if (WRECS.activeScene->entities[cEnt->entityID] == 1)
-        {
-            for (uint64_t i = 0; i < cEnt->entitySysCount; i++)
-            {
-                cEnt->entitySystems[i](cEnt->entityID);
-            }
-        }
-    }
 }
 
 static void error_callback(int error, const char *description)

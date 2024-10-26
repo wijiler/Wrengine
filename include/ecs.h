@@ -14,13 +14,10 @@ struct WREComponent
     void **entityData;
 };
 
-typedef void (*WREntitySystemfunction)(uint64_t entityID);
 typedef struct
 {
     uint64_t entityID;
-    uint64_t entitySysCount;
     uint8_t *components;
-    WREntitySystemfunction *entitySystems;
     bool active;
 } WREntity;
 
@@ -55,7 +52,6 @@ typedef struct
 extern systemManager WRECS;
 
 void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
-void addEntitySystem(WREntity *entity, WREntitySystemfunction function);
 void registerComponent(WREComponent *component);
 void registerEntity(WREntity *entity, WREScene *scene);
 void registerSystem(WRESystem *system);

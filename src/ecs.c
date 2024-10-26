@@ -21,16 +21,6 @@ void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
     rcomp->initializer(rcomp, entity->entityID);
 }
 
-void addEntitySystem(WREntity *entity, WREntitySystemfunction function)
-{
-    if (entity->entitySysCount % INCREMENTAMOUNT == 0)
-    {
-        entity->entitySystems = realloc(entity->entitySystems, sizeof(WREComponent) * (entity->entitySysCount + INCREMENTAMOUNT));
-    }
-    entity->entitySystems[entity->entitySysCount] = function;
-    entity->entitySysCount += 1;
-}
-
 void registerComponent(WREComponent *component)
 {
     if (WRECS.componentCount % INCREMENTAMOUNT == 0)
