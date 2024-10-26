@@ -59,7 +59,7 @@ float3 transform(Vertex vert, uint32_t id)
     rPos.x *= vert.scale.x;
     rPos.y *= vert.scale.y;
 
-    // rPos = scale(rPos, vert.position, scaleFactor);
+    rPos = scale(rPos, vert.position, scaleFactor);
     return rPos;
 }
 
@@ -68,9 +68,9 @@ VertOutput vertMain(uint32_t vertID: SV_VertexID, uint32_t instID: SV_InstanceID
 {
     VertOutput output;
 
-    output.sv_pos = float4(transform(ptrs[instID].vertices[0], vertID), 1.0f);
+    output.sv_pos = float4(transform(ptrs.vertices[instID], vertID), 1.0f);
     output.color = float3(1.0f, 1.0f, 1.0f);
-    output.texID = ptrs[instID].textureID;
+    output.texID = ptrs.textureID;
     output.uv = uvs[vertID];
 
     return output;

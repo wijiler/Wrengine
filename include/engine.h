@@ -19,7 +19,7 @@ struct WREngine
     uint64_t startupTaskCount;
     startupTask *startupTasks;
 };
-
+// --
 typedef struct
 {
     float x, y;
@@ -32,10 +32,24 @@ typedef struct
 
 typedef struct
 {
+    float x, y, z, w;
+} Vector4;
+
+typedef Vector4 Quat;
+
+typedef struct
+{
     Vector3 pos;
     Vector2 scale;
     float rotation;
 } transform2D;
+
+typedef struct
+{
+    Vector3 pos;
+    Vector3 scale;
+    Quat rotation;
+} transform3D;
 
 typedef struct
 {
@@ -48,7 +62,17 @@ typedef struct
     VkDeviceAddress meshAddr;
 } spriteComponent;
 
+typedef struct
+{
+    transform3D *transforms;
+    int instanceCount;
+    Mesh *mesh;
+
+    renderer_t *renderer;
+} meshComponent;
+// --
 extern WREComponent spriteComp;
+extern WREComponent meshComp;
 
 void addStartupTask(WREngine *engine, startupTask task);
 

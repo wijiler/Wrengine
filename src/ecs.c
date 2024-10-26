@@ -144,8 +144,6 @@ WREntity createEntity()
 {
     return (WREntity){
         0,
-        0,
-        NULL,
         NULL,
         false,
     };

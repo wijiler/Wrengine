@@ -221,14 +221,7 @@ void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data, uint64
         spriteComponent *compDat = (spriteComponent *)comp->entityData[j];
         if (compDat == NULL)
             continue;
-        VkMappedMemoryRange memRange = {
-            VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-            NULL,
-            compDat->data.associatedMemory,
-            0,
-            VK_WHOLE_SIZE,
-        };
-        vkFlushMappedMemoryRanges(engine->Renderer.vkCore.lDev, 1, &memRange); // TODO: we can batch these, but we need to figure out how to batch pushing data as well
+
         pushDataToBuffer(compDat->transforms, sizeof(transform2D) * compDat->instanceCount, compDat->data, 0);
     }
 }

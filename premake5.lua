@@ -7,6 +7,10 @@ project "Wrengine"
     kind "ConsoleApp"
     cdialect "C99"
 
+    prebuildcommands {
+        "compileShaders.bat"
+    }
+
     targetdir("%{wks.location}/Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("%{wks.location}/Binaries/Intermediates/" .. outputdir .. "/%{prj.name}")
     files { "include/**.h", "src/**.c" }
@@ -32,10 +36,6 @@ project "Wrengine"
     filter "system:linux"
         defines { "VK_USE_PLATFORM_XLIB_KHR" }
     filter ""
-
-    prebuildcommands {
-        "compileShaders.bat"
-    }
 
     filter "action:gmake"
     toolset "clang"
