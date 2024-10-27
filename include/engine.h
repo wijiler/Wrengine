@@ -39,14 +39,14 @@ typedef Vector4 Quat;
 
 typedef struct
 {
-    Vector3 pos;
+    Vector3 origin;
     Vector2 scale;
     float rotation;
 } transform2D;
 
 typedef struct
 {
-    Vector3 pos;
+    Vector3 origin;
     Vector3 scale;
     Quat rotation;
 } transform3D;
@@ -64,12 +64,22 @@ typedef struct
 
 typedef struct
 {
-    transform3D *transforms;
+    char *imagePath;
+} simpleMaterial;
+
+typedef struct
+{
     int instanceCount;
-    Mesh *mesh;
+    int vertCount;
+    int indexCount;
+    uint32_t *indices;        // per mesh
+    transform3D *transforms;  // per instance
+    Vector3 *vertexPositions; // per mesh
+    Vector3 *colors;          // per mesh
+    Vector2 *uvs;             // per mesh
 
     renderer_t *renderer;
-} meshComponent;
+} simpleMeshComponent;
 // --
 extern WREComponent spriteComp;
 extern WREComponent meshComp;

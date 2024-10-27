@@ -7,7 +7,7 @@ systemManager WRECS = {0};
 
 #define INCREMENTAMOUNT 100
 
-void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
+void addComponent(WREntity *entity, WREComponent *comp, void *constructionData, size_t constructionDataSize)
 {
     WREntity *entt = getEntity(entity->entityID);
     entt->components = realloc(entt->components, sizeof(uint8_t) * WRECS.componentCount);
@@ -15,7 +15,8 @@ void addComponent(WREntity *entity, WREComponent *comp, void *constructionData)
     entity->components = entt->components;
     WREComponent *rcomp = getComponent(comp->compID);
     rcomp->entityData = realloc(comp->entityData, sizeof(void *) * (WRECS.entityCount));
-    rcomp->entityData[entity->entityID] = constructionData;
+    rcomp->entityData[entity->entityID] = malloc(constructionDataSize);
+    memcpy(rcomp->entityData[entity->entityID], constructionData, constructionDataSize);
     comp->entityData = rcomp->entityData;
 
     rcomp->initializer(rcomp, entity->entityID);

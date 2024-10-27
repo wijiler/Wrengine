@@ -50,7 +50,7 @@ typedef struct
 } systemManager;
 extern systemManager WRECS;
 
-void addComponent(WREntity *entity, WREComponent *comp, void *constructionData);
+void addComponent(WREntity *entity, WREComponent *comp, void *constructionData, size_t constructionDataSize);
 void registerComponent(WREComponent *component);
 void registerEntity(WREntity *entity, WREScene *scene);
 void registerSystem(WRESystem *system);

@@ -211,10 +211,14 @@ void spriteRender(uint64_t *componentIDs, uint64_t compCount, void *data)
     for (uint64_t j = 0; j < WRECS.entityCount; j++)
     {
         spriteComponent *compDat = (spriteComponent *)comp->entityData[j];
+
         if (compDat == NULL)
             continue;
 
-        pushDataToBuffer(compDat->transforms, sizeof(transform2D) * compDat->instanceCount, compDat->data, 0);
+        if (WRECS.entities[j]->active)
+        {
+            pushDataToBuffer(compDat->transforms, sizeof(transform2D) * compDat->instanceCount, compDat->data, 0);
+        }
     }
 }
 void spriteDestroy(WREComponent *self, uint64_t entityID)

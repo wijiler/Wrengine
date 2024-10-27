@@ -34,12 +34,12 @@ static const float2 uvs[4] =
         float2(0.0f, 1.0f),
         float2(0.0f, 0.0f),
     };
-static const float3 vpositions[4] =
+static const float4 vpositions[4] =
     {
-        float3(1.0f, -1.0f, 0.0f),
-        float3(1.0f, 1.0f, 0.0f),
-        float3(-1.0f, -1.0f, 0.0f),
-        float3(-1.0f, 1.0f, 0.0f),
+        float4(1.0f, -1.0f, 0.0f, 1.0f),
+        float4(1.0f, 1.0f, 0.0f, 1.0f),
+        float4(-1.0f, -1.0f, 0.0f, 1.0f),
+        float4(-1.0f, 1.0f, 0.0f, 1.0f),
     };
 
 float3 rot(float3 p, float3 o, float a)
@@ -54,7 +54,7 @@ float3 scale(float3 p, float3 o, float sf)
 
 float3 transform(Vertex vert, uint32_t id)
 {
-    float3 rPos = vpositions[id] + vert.position;
+    float3 rPos = float3(vpositions[id].xyz) + vert.position;
     rPos = rot(rPos, vert.position, vert.rotation);
     rPos.x *= vert.scale.x;
     rPos.y *= vert.scale.y;
