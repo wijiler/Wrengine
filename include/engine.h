@@ -69,9 +69,10 @@ typedef struct
 
 typedef struct
 {
-    int instanceCount;
-    int vertCount;
-    int indexCount;
+    uint32_t instanceCount;
+    uint32_t vertCount;
+    uint32_t indexCount;
+
     uint32_t *indices;        // per mesh
     transform3D *transforms;  // per instance
     Vector3 *vertexPositions; // per mesh
@@ -79,6 +80,8 @@ typedef struct
     Vector2 *uvs;             // per mesh
 
     renderer_t *renderer;
+    Buffer verts;
+    Buffer instances;
 } simpleMeshComponent;
 // --
 extern WREComponent spriteComp;

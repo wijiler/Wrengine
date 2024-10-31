@@ -4,7 +4,7 @@
 *.exp
 .vs/
 .vscode/
-notes/
+Notes/
 Build/
 Lib/
 *.spv

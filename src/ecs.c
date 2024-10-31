@@ -29,6 +29,7 @@ void registerComponent(WREComponent *component)
         WRECS.components = realloc(WRECS.components, sizeof(WREComponent) * (WRECS.componentCount + INCREMENTAMOUNT));
     }
     component->compID = WRECS.componentCount;
+    component->entityData = NULL;
     WRECS.components[WRECS.componentCount] = malloc(sizeof(WREComponent));
     memcpy(WRECS.components[WRECS.componentCount], component, sizeof(WREComponent));
     WRECS.componentCount += 1;
@@ -36,7 +37,11 @@ void registerComponent(WREComponent *component)
 
 void registerEntity(WREntity *entity, WREScene *scene)
 {
-    entity->active = true;
+    entity->active = USAGE_INACTIVE;
+    if (scene == WRECS.activeScene)
+    {
+        entity->active = USAGE_ACTIVE;
+    }
     scene->entities = realloc(scene->entities, sizeof(uint8_t) * (WRECS.entityCount + 1));
     scene->entities[entity->entityID] = 1;
     if (WRECS.entityCount % INCREMENTAMOUNT == 0)
@@ -46,7 +51,7 @@ void registerEntity(WREntity *entity, WREScene *scene)
 
     for (uint64_t i = 0; i < WRECS.entityCount; i++)
     {
-        if (!WRECS.entities[i]->active)
+        if (WRECS.entities[i]->active == USAGE_REMOVED)
         {
             entity->entityID = i;
             WRECS.entities[i] = malloc(sizeof(WREntity));
@@ -64,14 +69,14 @@ void registerEntity(WREntity *entity, WREScene *scene)
 
 void registerSystem(WRESystem *system)
 {
-    system->active = true;
+    system->active = USAGE_INACTIVE;
     if (WRECS.systemCount % INCREMENTAMOUNT == 0)
     {
         WRECS.systems = realloc(WRECS.systems, sizeof(WRESystem) * (WRECS.systemCount + INCREMENTAMOUNT));
     }
     for (uint64_t i = 0; i < WRECS.systemCount; i++)
     {
-        if (!WRECS.systems[i]->active)
+        if (WRECS.systems[i]->active == USAGE_REMOVED)
         {
             system->systemID = i;
             WRECS.systems[i] = malloc(sizeof(WRESystem));
@@ -103,14 +108,14 @@ WRESystem *getSystem(uint64_t SystemID)
 void removeSystem(uint64_t systemID)
 {
     WRESystem *sys = getSystem(systemID);
-    sys->active = false;
+    sys->active = USAGE_REMOVED;
     WRECS.systemCount -= 1;
 }
 
 void destroyEntity(uint64_t entityID)
 {
     WREntity *entity = getEntity(entityID);
-    entity->active = false;
+    entity->active = USAGE_REMOVED;
     for (uint64_t i = 0; i < WRECS.componentCount; i++)
     {
         if (entity->components[i] == 1)
@@ -131,6 +136,13 @@ WREScene createScene()
 void setActiveScene(WREScene *scene)
 {
     WRECS.activeScene = scene;
+    for (uint64_t i = 0; i < WRECS.entityCount; i++)
+    {
+        if (scene->entities[i] != 1)
+            WRECS.entities[i]->active = USAGE_INACTIVE;
+        else
+            WRECS.entities[i]->active = USAGE_ACTIVE;
+    }
 }
 WREComponent createComponent(ComponentFunction init, ComponentFunction destroy)
 {

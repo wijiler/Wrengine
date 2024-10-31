@@ -6,6 +6,13 @@
 typedef struct WREComponent WREComponent;
 typedef void (*ComponentFunction)(WREComponent *self, uint64_t entityID);
 
+typedef enum
+{
+    USAGE_INACTIVE,
+    USAGE_REMOVED,
+    USAGE_ACTIVE,
+} WREUsage;
+
 struct WREComponent
 {
     uint64_t compID;
@@ -18,7 +25,7 @@ typedef struct
 {
     uint64_t entityID;
     uint8_t *components;
-    bool active;
+    WREUsage active;
 } WREntity;
 
 typedef void (*WRESystemfunction)(uint64_t *componentIDs, uint64_t compCount, void *data);
@@ -28,7 +35,7 @@ typedef struct
     uint64_t systemID;
     uint64_t touchCount;
     WRESystemfunction function;
-    bool active;
+    WREUsage active;
     void *data;
     uint64_t *componentIDs;
 } WRESystem;

@@ -19,7 +19,12 @@ struct Mesh
 {
     MeshInstance *instances;
     Vertex *vertices;
+    uint64_t textureId;
 }
+
+[vk_binding(0)]
+Sampler2DArray textures;
+
 [vk_push_constant]
 Mesh *meshes;
 
@@ -29,9 +34,6 @@ struct VertexShaderOutput
     float3 color : outColor;
     float2 uv : outUV;
 }
-
-[vk_binding(0)]
-Sampler2DArray textures;
 
 [shader("vertex")]
 VertexShaderOutput vertMain()

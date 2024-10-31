@@ -1,10 +1,10 @@
 #include <engine.h>
 WREngine engine = {0};
 WREScene scene = {0};
-transform2D trans = (transform2D){
-    (Vector3){0, 0, 0},
-    (Vector2){1, 1},
-    0,
+transform2D trans = {
+    .origin = {0, 0, 0},
+    .scale = {1, 1},
+    .rotation = 0,
 };
 void startTask(WREngine *engine)
 {
